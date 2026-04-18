@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from models import AnalyzeRequest, AnalysisResult
-from services.claude import extract_fields
+from services.ai import extract_fields
 
 router = APIRouter()
 

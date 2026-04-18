@@ -1,7 +1,7 @@
 import asyncio
 import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from services.claude import extract_fields
+from services.ai import extract_fields
 from services.stt import create_stt_session
 
 router = APIRouter()
