@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
+
 コールセンターオペレーター向けのリアルタイム通話文字起こし・AI分析ツール。
 
 **最終目標:** 既存の Laravel Blade フォームに JS ウィジェットとして組み込み、オペレーターがボタンを押すと通話音声を文字起こしして、フォームの各項目（住所・カテゴリー・相談内容等）に自動入力する。
@@ -10,9 +11,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 詳細仕様: `docs/superpowers/specs/2026-04-18-ai-callcenter-design.md`
 
 ## 現在のステータス
+
 **Phase 1（プロトタイプ）着手前** — 設計完了、実装未着手。
 
 ## アーキテクチャ
+
 ```
 既存 Laravel Blade フォーム
   └─ JS ウィジェット（data-ai-target 属性でフォーム項目に自動入力）
