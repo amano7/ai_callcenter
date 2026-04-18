@@ -6,7 +6,7 @@ from services.stt import create_stt_session
 
 router = APIRouter()
 
-_BUFFER_MAX_CHARS = 200
+_BUFFER_MAX_CHARS = 50
 _BUFFER_MAX_SECONDS = 30
 
 
@@ -35,6 +35,19 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
         while True:
             transcript, is_final = await transcript_queue.get()
             if transcript is None:
+                # セッション終了時に残りのバッファをフラッシュ
+                if transcript_buffer.strip():
+                    text = transcript_buffer.strip()
+                    try:
+                        analysis = await extract_fields(text)
+                        await websocket.send_json(
+                            {"type": "analysis", "analysis": analysis.model_dump()}
+                        )
+                    except Exception as e:
+                        try:
+                            await websocket.send_json({"type": "error", "message": str(e)})
+                        except RuntimeError:
+                            pass
                 break
             try:
                 await websocket.send_json(

@@ -27,5 +27,11 @@ async def extract_fields(text: str) -> AnalysisResult:
         messages=[{"role": "user", "content": _PROMPT.format(text=text)}],
     )
     raw = message.content[0].text.strip()
+    # コードブロック（```json ... ```）が含まれる場合に中身だけ取り出す
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
     data = json.loads(raw)
     return AnalysisResult(**data)
