@@ -6,6 +6,7 @@ services:
     volumes:
       - ./api:/app
       - ./widget:/app/widget
+      - ./google-credentials.json:/app/google-credentials.json:ro
     env_file:
       - .env
     environment:

@@ -62,6 +62,9 @@ async def _google_stt(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=16000,
             language_code="ja-JP",
+            model="telephony",
+            use_enhanced=True,
+            enable_automatic_punctuation=True,
         )
         streaming_config = speech.StreamingRecognitionConfig(
             config=config,
@@ -71,14 +74,19 @@ async def _google_stt(
             speech.StreamingRecognizeRequest(audio_content=chunk)
             for chunk in audio_generator()
         )
-        responses = stt_client.streaming_recognize(streaming_config, requests)
-        for response in responses:
-            for result in response.results:
-                transcript = result.alternatives[0].transcript
-                is_final = result.is_final
-                asyncio.run_coroutine_threadsafe(
-                    transcript_queue.put((transcript, is_final)), loop
-                )
+        try:
+            responses = stt_client.streaming_recognize(streaming_config, requests)
+            for response in responses:
+                for result in response.results:
+                    transcript = result.alternatives[0].transcript
+                    is_final = result.is_final
+                    print(f"[stt] transcript: {transcript!r} (final={is_final})", flush=True)
+                    asyncio.run_coroutine_threadsafe(
+                        transcript_queue.put((transcript, is_final)), loop
+                    )
+        except Exception as e:
+            print(f"[stt] error: {e}", flush=True)
+            raise
 
     await loop.run_in_executor(None, run_stt)
     await transcript_queue.put((None, None))

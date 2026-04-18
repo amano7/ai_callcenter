@@ -6,7 +6,7 @@ from services.stt import create_stt_session
 
 router = APIRouter()
 
-_BUFFER_MAX_CHARS = 50
+_BUFFER_MAX_CHARS = 1
 _BUFFER_MAX_SECONDS = 30
 
 
@@ -23,8 +23,19 @@ async def websocket_stream(websocket: WebSocket, session_id: str) -> None:
     async def receive_audio() -> None:
         try:
             while True:
-                data = await websocket.receive_bytes()
-                await audio_queue.put(data)
+                message = await websocket.receive()
+                if message["type"] == "websocket.disconnect":
+                    break
+                if message.get("bytes"):
+                    await audio_queue.put(message["bytes"])
+                elif message.get("text"):
+                    import json as _json
+                    try:
+                        data = _json.loads(message["text"])
+                        if data.get("type") == "stop":
+                            break
+                    except Exception:
+                        pass
         except (WebSocketDisconnect, RuntimeError):
             pass
         finally:

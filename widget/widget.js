@@ -20,6 +20,9 @@ const AIWidget = (() => {
       const msg = JSON.parse(event.data);
       if (msg.type === "analysis") {
         fillForm(msg.analysis);
+        // 分析結果を受け取ったら WebSocket を閉じる
+        ws?.close();
+        ws = null;
       }
     };
 
@@ -46,14 +49,17 @@ const AIWidget = (() => {
   }
 
   function stopRecording() {
+    // マイク・音声処理を停止
     workletNode?.disconnect();
     mediaStream?.getTracks().forEach((t) => t.stop());
     audioContext?.close();
-    ws?.close();
-    ws = null;
+    workletNode = null;
     audioContext = null;
     mediaStream = null;
-    workletNode = null;
+    // WebSocket はすぐ閉じず、停止シグナルを送って分析結果を待つ
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "stop" }));
+    }
   }
 
   function init(options) {
