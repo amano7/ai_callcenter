@@ -1,0 +1,17 @@
+# 環境変数・シークレット
+.env
+google-credentials.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Docker
+.docker/
+
+# IDE
+.idea/
+.vscode/
+*.swp

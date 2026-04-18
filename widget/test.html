@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI コールセンター ウィジェット テスト</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      label {
+        display: block;
+        margin: 0.5rem 0;
+      }
+      input,
+      textarea {
+        width: 100%;
+        margin-top: 0.25rem;
+        padding: 0.4rem;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AI コールセンター テスト画面</h1>
+    <form>
+      <label>
+        ジャンル
+        <input name="genre" data-ai-target="genre" placeholder="（自動入力）" />
+      </label>
+      <label>
+        カテゴリー
+        <input name="category" data-ai-target="category" placeholder="（自動入力）" />
+      </label>
+      <label>
+        住所
+        <input name="address" data-ai-target="address" placeholder="（自動入力）" />
+      </label>
+      <label>
+        相談内容
+        <textarea
+          name="consultation"
+          data-ai-target="consultation"
+          rows="4"
+          placeholder="（自動入力）"
+        ></textarea>
+      </label>
+    </form>
+
+    <button id="ai-start">🎤 文字起こし開始</button>
+
+    <script>
+      window.AI_WIDGET_WS_URL = "ws://localhost:8000";
+    </script>
+    <script src="/ai-callcenter/widget.js"></script>
+    <script>
+      AIWidget.init({ sessionId: "test-" + Date.now() });
+    </script>
+  </body>
+</html>
