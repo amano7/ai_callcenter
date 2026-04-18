@@ -5,7 +5,7 @@ from services.prompt import EXTRACT_PROMPT, parse_response
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
-_model = genai.GenerativeModel("gemini-2.5-flash")
+_model = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"))
 
 
 async def extract_fields(text: str) -> AnalysisResult:
