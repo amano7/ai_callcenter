@@ -1,3 +1,6 @@
+# Claude Code ローカル設定
+.claude/
+
 # 環境変数・シークレット
 .env
 google-credentials.json
