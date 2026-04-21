@@ -12,11 +12,13 @@ async def create_stt_session(
     audio_queue: asyncio.Queue,
     transcript_queue: asyncio.Queue,
 ) -> None:
-    """STT セッション。GOOGLE_APPLICATION_CREDENTIALS 未設定時はモック動作。"""
-    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        await _mock_stt(audio_queue, transcript_queue)
-    else:
+    """STT セッション。USE_LOCAL_WHISPER / GOOGLE_APPLICATION_CREDENTIALS の設定に応じて切り替え。"""
+    if os.environ.get("USE_LOCAL_WHISPER") == "true":
+        await _whisper_stt(audio_queue, transcript_queue)
+    elif os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         await _google_stt(audio_queue, transcript_queue)
+    else:
+        await _mock_stt(audio_queue, transcript_queue)
 
 
 async def _mock_stt(
@@ -90,3 +92,93 @@ async def _google_stt(
 
     await loop.run_in_executor(None, run_stt)
     await transcript_queue.put((None, None))
+
+
+async def _whisper_stt(
+    audio_queue: asyncio.Queue,
+    transcript_queue: asyncio.Queue,
+) -> None:
+    """ローカル Whisper ストリーミング（1秒ごとの連続推論）"""
+    import numpy as np
+    from main import _whisper_model
+
+    # 音声バッファ（16kHz × 16bit = 16,000 サンプル/秒）
+    sample_rate = 16000
+    buffer_duration = 1.0  # 1 秒
+    buffer_samples = int(sample_rate * buffer_duration)
+
+    audio_buffer = np.array([], dtype=np.float32)
+    loop = asyncio.get_event_loop()
+
+    def run_whisper_inference():
+        """Whisper 推論（スレッドプールで実行）"""
+        nonlocal audio_buffer
+
+        if len(audio_buffer) < buffer_samples:
+            return None  # バッファがまだ満たない
+
+        # バッファから 1 秒分を抽出
+        audio_chunk = audio_buffer[:buffer_samples]
+
+        # 残りのバッファを保持
+        audio_buffer = audio_buffer[buffer_samples:]
+
+        try:
+            # Whisper で推論
+            result = _whisper_model.transcribe(
+                audio_chunk,
+                language="ja",
+                fp16=False,  # M4 では fp16 非対応の場合があるため
+            )
+            transcript = result["text"].strip()
+            return transcript if transcript else None
+        except Exception as e:
+            print(f"[stt] Whisper error: {e}", flush=True)
+            return None
+
+    try:
+        while True:
+            # 音声チャンクを受信
+            chunk = await audio_queue.get()
+            if chunk is None:
+                break
+
+            # バイナリデータを float32 に変換
+            # chunk: bytes（Int16 形式）
+            chunk_int16 = np.frombuffer(chunk, dtype=np.int16)
+            chunk_float32 = chunk_int16.astype(np.float32) / 32768.0
+
+            # バッファに追加
+            audio_buffer = np.concatenate([audio_buffer, chunk_float32])
+
+            # バッファが 1 秒以上たまったら推論
+            if len(audio_buffer) >= buffer_samples:
+                transcript = await loop.run_in_executor(None, run_whisper_inference)
+                if transcript:
+                    print(f"[stt] transcript: {transcript!r} (final=False)", flush=True)
+                    await transcript_queue.put((transcript, False))
+
+        # 残りのバッファを最後に推論
+        if len(audio_buffer) > 0:
+            # 残りのバッファをパディング（不足分をゼロ埋め）
+            padded = np.zeros(buffer_samples, dtype=np.float32)
+            padded[:len(audio_buffer)] = audio_buffer
+
+            try:
+                result = _whisper_model.transcribe(
+                    padded,
+                    language="ja",
+                    fp16=False,
+                )
+                transcript = result["text"].strip()
+                if transcript:
+                    print(f"[stt] transcript: {transcript!r} (final=True)", flush=True)
+                    await transcript_queue.put((transcript, True))
+            except Exception as e:
+                print(f"[stt] Whisper error on final buffer: {e}", flush=True)
+
+    except Exception as e:
+        print(f"[stt] error: {e}", flush=True)
+        raise
+    finally:
+        await transcript_queue.put((None, None))
