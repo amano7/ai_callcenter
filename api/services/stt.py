@@ -107,30 +107,29 @@ async def _whisper_stt(
     buffer_duration = 1.0  # 1 秒
     buffer_samples = int(sample_rate * buffer_duration)
 
-    audio_buffer = np.array([], dtype=np.float32)
+    # バッファをリストで管理（ミュータブル）
+    buffer_list = []
     loop = asyncio.get_event_loop()
 
     def run_whisper_inference():
         """Whisper 推論（スレッドプールで実行）"""
-        nonlocal audio_buffer
-
-        if len(audio_buffer) < buffer_samples:
+        if len(buffer_list) < buffer_samples:
             return None  # バッファがまだ満たない
 
         # バッファから 1 秒分を抽出
-        audio_chunk = audio_buffer[:buffer_samples]
+        audio_chunk = np.array(buffer_list[:buffer_samples], dtype=np.float32)
 
-        # 残りのバッファを保持
-        audio_buffer = audio_buffer[buffer_samples:]
+        # 残りのバッファを保持（リストから削除）
+        del buffer_list[:buffer_samples]
 
         try:
             # Whisper で推論
             result = _whisper_model.transcribe(
                 audio_chunk,
                 language="ja",
-                fp16=False,  # M4 では fp16 非対応の場合があるため
+                fp16=False,
             )
-            transcript = result["text"].strip()
+            transcript = result.get("text", "").strip()
             return transcript if transcript else None
         except Exception as e:
             print(f"[stt] Whisper error: {e}", flush=True)
@@ -148,29 +147,29 @@ async def _whisper_stt(
             chunk_int16 = np.frombuffer(chunk, dtype=np.int16)
             chunk_float32 = chunk_int16.astype(np.float32) / 32768.0
 
-            # バッファに追加
-            audio_buffer = np.concatenate([audio_buffer, chunk_float32])
+            # バッファに追加（リストに拡張）
+            buffer_list.extend(chunk_float32.tolist())
 
             # バッファが 1 秒以上たまったら推論
-            if len(audio_buffer) >= buffer_samples:
+            while len(buffer_list) >= buffer_samples:
                 transcript = await loop.run_in_executor(None, run_whisper_inference)
                 if transcript:
                     print(f"[stt] transcript: {transcript!r} (final=False)", flush=True)
                     await transcript_queue.put((transcript, False))
 
         # 残りのバッファを最後に推論
-        if len(audio_buffer) > 0:
+        if len(buffer_list) > 0:
             # 残りのバッファをパディング（不足分をゼロ埋め）
-            padded = np.zeros(buffer_samples, dtype=np.float32)
-            padded[:len(audio_buffer)] = audio_buffer
+            padded = buffer_list + [0.0] * (buffer_samples - len(buffer_list))
+            padded_array = np.array(padded[:buffer_samples], dtype=np.float32)
 
             try:
                 result = _whisper_model.transcribe(
-                    padded,
+                    padded_array,
                     language="ja",
                     fp16=False,
                 )
-                transcript = result["text"].strip()
+                transcript = result.get("text", "").strip()
                 if transcript:
                     print(f"[stt] transcript: {transcript!r} (final=True)", flush=True)
                     await transcript_queue.put((transcript, True))
