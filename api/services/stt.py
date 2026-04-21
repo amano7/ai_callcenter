@@ -104,7 +104,7 @@ async def _whisper_stt(
 
     # 音声バッファ（16kHz × 16bit = 16,000 サンプル/秒）
     sample_rate = 16000
-    buffer_duration = 4.0  # 4 秒（base モデルの推論時間とバランス）
+    buffer_duration = 5.0  # 5 秒（medium モデルで精度とバランス）
     buffer_samples = int(sample_rate * buffer_duration)
 
     # バッファをリストで管理（ミュータブル）

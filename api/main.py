@@ -16,8 +16,8 @@ async def startup_event():
     """FastAPI 起動時に Whisper モデルをロード"""
     global _whisper_model
     if os.environ.get("USE_LOCAL_WHISPER") == "true":
-        print("[app] Loading Whisper base model...", flush=True)
-        _whisper_model = whisper.load_model("base")
+        print("[app] Loading Whisper medium model...", flush=True)
+        _whisper_model = whisper.load_model("medium")
         print("[app] Whisper model loaded successfully", flush=True)
 
 @app.on_event("shutdown")
